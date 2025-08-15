@@ -3,124 +3,89 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audio Visualizer to GIF</title>
+<title>Transparent Audio Visualizer</title>
 <style>
-  body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #222; color: #fff; font-family: sans-serif; }
-  canvas { background: transparent; border: 1px solid #444; }
-  button { margin-top: 10px; padding: 8px 12px; cursor: pointer; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #fff; }
+  canvas { background: transparent; }
 </style>
 </head>
 <body>
-<h2>오디오 업로드 후 비주얼라이저 GIF 생성</h2>
-<input type="file" id="audioFile" accept="audio/*">
-<canvas id="visualizer" width="500" height="200"></canvas>
-<button id="generateGif" disabled>GIF 생성</button>
 
-<!-- gif.js -->
-<script src="gif.js"></script>
+<h2>오디오 업로드 후 비주얼라이저 생성</h2>
+<input type="file" id="audioUpload" accept="audio/*">
+<button id="startBtn">비주얼라이저 시작 & 저장</button>
+
+<canvas id="visualizer" width="800" height="400"></canvas>
+
 <script>
-const fileInput = document.getElementById('audioFile');
 const canvas = document.getElementById('visualizer');
 const ctx = canvas.getContext('2d');
-const generateBtn = document.getElementById('generateGif');
-
-let audioContext, analyser, dataArray, sourceNode, audioBuffer;
+let audioBuffer, audioContext, analyser, source;
 let animationId;
-let uploadedFileName = '';
 
-fileInput.addEventListener('change', async (e) => {
+document.getElementById('audioUpload').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    uploadedFileName = file.name.split('.').slice(0, -1).join('.');
     const arrayBuffer = await file.arrayBuffer();
-
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    
-    if (sourceNode) sourceNode.disconnect();
-    sourceNode = audioContext.createBufferSource();
-    sourceNode.buffer = audioBuffer;
-
+    source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
     analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    const bufferLength = analyser.frequencyBinCount;
-    dataArray = new Uint8Array(bufferLength);
-
-    sourceNode.connect(analyser);
+    source.connect(analyser);
     analyser.connect(audioContext.destination);
-
-    sourceNode.start();
-    drawVisualizer();
-    generateBtn.disabled = false;
+    window.audioFileName = file.name.replace(/\.[^/.]+$/, ""); // 확장자 제거
 });
 
 function drawVisualizer() {
-    const WIDTH = canvas.width;
-    const HEIGHT = canvas.height;
-
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
     analyser.getByteFrequencyData(dataArray);
 
-    ctx.clearRect(0, 0, WIDTH, HEIGHT);
-    const barWidth = (WIDTH / dataArray.length) * 2.5;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const barWidth = (canvas.width / bufferLength) * 2.5;
     let x = 0;
 
-    dataArray.forEach((item) => {
-        const barHeight = item;
-        ctx.fillStyle = 'rgba(0,255,255,0.7)';
-        ctx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight);
+    for(let i = 0; i < bufferLength; i++) {
+        const barHeight = dataArray[i];
+        ctx.fillStyle = `rgba(0, 200, 255, 0.7)`; // 투명 효과
+        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
         x += barWidth + 1;
-    });
+    }
 
     animationId = requestAnimationFrame(drawVisualizer);
 }
 
-generateBtn.addEventListener('click', () => {
-    if (!audioBuffer) return;
-    cancelAnimationFrame(animationId);
+document.getElementById('startBtn').addEventListener('click', async () => {
+    if (!source) return alert("오디오 파일을 먼저 업로드해주세요.");
+    
+    // 비주얼라이저 시작
+    drawVisualizer();
+    source.start(0);
 
-    // GIF 생성
-    const gif = new GIF({
-        workers: 2,
-        quality: 10,
-        workerScript: 'gif.worker.js', // <-- 로컬 worker 경로
-        transparent: 0x00000000,
-        width: canvas.width,
-        height: canvas.height
-    });
-
-    // 간단하게 50프레임으로 GIF 생성
-    let frameCount = 0;
-    const totalFrames = 50;
-    const captureFrame = () => {
-        analyser.getByteFrequencyData(dataArray);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const barWidth = (canvas.width / dataArray.length) * 2.5;
-        let x = 0;
-        dataArray.forEach((item) => {
-            const barHeight = item;
-            ctx.fillStyle = 'rgba(0,255,255,0.7)';
-            ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-            x += barWidth + 1;
-        });
-
-        gif.addFrame(canvas, {delay: 50, copy: true});
-        frameCount++;
-        if (frameCount < totalFrames) {
-            requestAnimationFrame(captureFrame);
-        } else {
-            gif.render();
-        }
-    };
-    captureFrame();
-
-    gif.on('finished', (blob) => {
+    // WebM 녹화 설정
+    const stream = canvas.captureStream(60); // 60fps
+    const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+    let chunks = [];
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onstop = e => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `${uploadedFileName}_visualizer.gif`;
+        a.href = url;
+        a.download = `${window.audioFileName}_비주얼.webm`;
         a.click();
-    });
+        cancelAnimationFrame(animationId);
+        audioContext.close();
+    };
+    
+    mediaRecorder.start();
+
+    // 오디오 끝나면 녹화도 종료
+    source.onended = () => mediaRecorder.stop();
 });
 </script>
+
 </body>
 </html>
