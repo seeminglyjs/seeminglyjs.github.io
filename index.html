@@ -1,152 +1,128 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Audio Visualizer to GIF</title>
-  <style>
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-      background: linear-gradient(135deg, #1e1e1e, #121212);
-      color: white;
-      font-family: 'Arial', sans-serif;
-    }
-    canvas {
-      border-radius: 15px;
-      box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-      margin-top: 20px;
-      background: transparent;
-    }
-    button {
-      padding: 12px 24px;
-      margin-top: 20px;
-      background-color: #6200ea;
-      border: none;
-      border-radius: 30px;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    button:hover {
-      background-color: #3700b3;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio Visualizer to GIF</title>
+<style>
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #222; color: #fff; font-family: sans-serif; }
+  canvas { background: transparent; }
+</style>
 </head>
 <body>
+<h2>오디오 업로드 후 비주얼라이저 GIF 생성</h2>
+<input type="file" id="audioFile" accept="audio/*">
+<canvas id="visualizer" width="500" height="200"></canvas>
+<button id="generateGif" disabled>GIF 생성</button>
 
-  <h1>오디오 비주얼라이저 GIF 생성기</h1>
-  <input type="file" id="audioFile" accept="audio/*">
-  <button id="startBtn">GIF 생성</button>
-  <canvas id="visualizer" width="600" height="200"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+<script>
+const fileInput = document.getElementById('audioFile');
+const canvas = document.getElementById('visualizer');
+const ctx = canvas.getContext('2d');
+const generateBtn = document.getElementById('generateGif');
 
-  <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
-  <script>
-    const audioInput = document.getElementById('audioFile');
-    const canvas = document.getElementById('visualizer');
-    const ctx = canvas.getContext('2d');
-    const startBtn = document.getElementById('startBtn');
+let audioContext, analyser, dataArray, sourceNode, audioBuffer;
+let animationId;
+let uploadedFileName = '';
 
-    let audioBuffer, audioContext, sourceNode, analyser, dataArray;
-    let audioFileName = "";
+fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    uploadedFileName = file.name.split('.').slice(0, -1).join('.');
+    const arrayBuffer = await file.arrayBuffer();
 
-    audioInput.addEventListener('change', async () => {
-      const file = audioInput.files[0];
-      if (!file) return;
-      audioFileName = file.name.replace(/\.[^/.]+$/, "");
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    
+    if (sourceNode) sourceNode.disconnect();
+    sourceNode = audioContext.createBufferSource();
+    sourceNode.buffer = audioBuffer;
 
-      const arrayBuffer = await file.arrayBuffer();
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    const bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
 
-      if (sourceNode) sourceNode.disconnect();
-      sourceNode = audioContext.createBufferSource();
-      sourceNode.buffer = audioBuffer;
+    sourceNode.connect(analyser);
+    analyser.connect(audioContext.destination);
 
-      analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      const bufferLength = analyser.frequencyBinCount;
-      dataArray = new Uint8Array(bufferLength);
+    sourceNode.start();
+    drawVisualizer();
+    generateBtn.disabled = false;
+});
 
-      sourceNode.connect(analyser);
-      analyser.connect(audioContext.destination);
+function drawVisualizer() {
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+
+    analyser.getByteFrequencyData(dataArray);
+
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    const barWidth = (WIDTH / dataArray.length) * 2.5;
+    let x = 0;
+
+    dataArray.forEach((item) => {
+        const barHeight = item;
+        ctx.fillStyle = 'rgba(0,255,255,0.7)';
+        ctx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight);
+        x += barWidth + 1;
     });
 
-    function drawVisualizer() {
-      analyser.getByteFrequencyData(dataArray);
+    animationId = requestAnimationFrame(drawVisualizer);
+}
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+generateBtn.addEventListener('click', () => {
+    if (!audioBuffer) return;
+    cancelAnimationFrame(animationId);
 
-      const barWidth = canvas.width / dataArray.length;
-      for (let i = 0; i < dataArray.length; i++) {
-        const barHeight = dataArray[i];
-        const x = i * barWidth + barWidth / 2;
-        const y = canvas.height - barHeight / 2;
-        const radius = barWidth / 2;
-
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, 0.8)`;
-        ctx.fill();
-      }
-    }
-
-    startBtn.addEventListener('click', () => {
-      if (!audioBuffer) return alert('오디오 파일을 먼저 선택하세요!');
-
-      if (sourceNode) sourceNode.disconnect();
-      sourceNode = audioContext.createBufferSource();
-      sourceNode.buffer = audioBuffer;
-      sourceNode.connect(analyser);
-      analyser.connect(audioContext.destination);
-      sourceNode.start();
-
-      const gif = new GIF({
+    const gif = new GIF({
         workers: 2,
         quality: 10,
+        transparent: 0x00000000,
         width: canvas.width,
-        height: canvas.height,
-        workerScript: 'https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js',
-        transparent: null
-      });
-
-      const duration = audioBuffer.duration;
-      const fps = 20;
-      let frame = 0;
-      const totalFrames = Math.floor(duration * fps);
-
-      function captureFrame() {
-        drawVisualizer();
-        try {
-          gif.addFrame(ctx, { copy: true, delay: 1000 / fps });
-        } catch (e) {
-          console.error('프레임 추가 에러:', e);
-        }
-        frame++;
-        if (frame < totalFrames) {
-          requestAnimationFrame(captureFrame);
-        } else {
-          gif.render();
-        }
-      }
-
-      gif.on('finished', function (blob) {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `${audioFileName}_비주얼.gif`;
-        link.click();
-      });
-
-      captureFrame();
+        height: canvas.height
     });
-  </script>
-<!-- git add index.html -->
- <!-- git commit -m "index.html update" -->
-  <!-- git push origin main -->
+
+    const tempContext = new OfflineAudioContext(1, audioBuffer.length, audioBuffer.sampleRate);
+    const tempSource = tempContext.createBufferSource();
+    tempSource.buffer = audioBuffer;
+    tempSource.connect(tempContext.destination);
+    tempSource.start();
+
+    tempContext.startRendering().then(() => {
+        // 단순히 미리보기 GIF를 5초 동안 캡쳐
+        let frameCount = 0;
+        const totalFrames = 50; // 50프레임 예시
+        const captureFrame = () => {
+            analyser.getByteFrequencyData(dataArray);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const barWidth = (canvas.width / dataArray.length) * 2.5;
+            let x = 0;
+            dataArray.forEach((item) => {
+                const barHeight = item;
+                ctx.fillStyle = 'rgba(0,255,255,0.7)';
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            });
+            gif.addFrame(canvas, {delay: 50, copy: true});
+            frameCount++;
+            if (frameCount < totalFrames) {
+                requestAnimationFrame(captureFrame);
+            } else {
+                gif.render();
+            }
+        };
+        captureFrame();
+    });
+
+    gif.on('finished', (blob) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${uploadedFileName}_visualizer.gif`;
+        a.click();
+    });
+});
+</script>
 </body>
 </html>
