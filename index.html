@@ -6,7 +6,8 @@
 <title>Audio Visualizer to GIF</title>
 <style>
   body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #222; color: #fff; font-family: sans-serif; }
-  canvas { background: transparent; }
+  canvas { background: transparent; border: 1px solid #444; }
+  button { margin-top: 10px; padding: 8px 12px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -15,7 +16,8 @@
 <canvas id="visualizer" width="500" height="200"></canvas>
 <button id="generateGif" disabled>GIF 생성</button>
 
-<script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+<!-- gif.js -->
+<script src="gif.js"></script>
 <script>
 const fileInput = document.getElementById('audioFile');
 const canvas = document.getElementById('visualizer');
@@ -76,45 +78,41 @@ generateBtn.addEventListener('click', () => {
     if (!audioBuffer) return;
     cancelAnimationFrame(animationId);
 
+    // GIF 생성
     const gif = new GIF({
         workers: 2,
         quality: 10,
+        workerScript: 'gif.worker.js', // <-- 로컬 worker 경로
         transparent: 0x00000000,
         width: canvas.width,
         height: canvas.height
     });
 
-    const tempContext = new OfflineAudioContext(1, audioBuffer.length, audioBuffer.sampleRate);
-    const tempSource = tempContext.createBufferSource();
-    tempSource.buffer = audioBuffer;
-    tempSource.connect(tempContext.destination);
-    tempSource.start();
+    // 간단하게 50프레임으로 GIF 생성
+    let frameCount = 0;
+    const totalFrames = 50;
+    const captureFrame = () => {
+        analyser.getByteFrequencyData(dataArray);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    tempContext.startRendering().then(() => {
-        // 단순히 미리보기 GIF를 5초 동안 캡쳐
-        let frameCount = 0;
-        const totalFrames = 50; // 50프레임 예시
-        const captureFrame = () => {
-            analyser.getByteFrequencyData(dataArray);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const barWidth = (canvas.width / dataArray.length) * 2.5;
-            let x = 0;
-            dataArray.forEach((item) => {
-                const barHeight = item;
-                ctx.fillStyle = 'rgba(0,255,255,0.7)';
-                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-                x += barWidth + 1;
-            });
-            gif.addFrame(canvas, {delay: 50, copy: true});
-            frameCount++;
-            if (frameCount < totalFrames) {
-                requestAnimationFrame(captureFrame);
-            } else {
-                gif.render();
-            }
-        };
-        captureFrame();
-    });
+        const barWidth = (canvas.width / dataArray.length) * 2.5;
+        let x = 0;
+        dataArray.forEach((item) => {
+            const barHeight = item;
+            ctx.fillStyle = 'rgba(0,255,255,0.7)';
+            ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+            x += barWidth + 1;
+        });
+
+        gif.addFrame(canvas, {delay: 50, copy: true});
+        frameCount++;
+        if (frameCount < totalFrames) {
+            requestAnimationFrame(captureFrame);
+        } else {
+            gif.render();
+        }
+    };
+    captureFrame();
 
     gif.on('finished', (blob) => {
         const a = document.createElement('a');
