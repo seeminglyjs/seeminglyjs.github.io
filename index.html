@@ -43,7 +43,7 @@
   .card h3{margin:0 0 10px; font-size:18px}
   .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
   .row > *{flex:1 1 auto}
-  .controls{display:flex; gap:8px; flex-wrap:wrap}
+  .controls{display:flex; gap:8px; flex-wrap:wrap; margin: 5px 0px;}
   label{display:block; font-weight:600; margin-top:8px; margin-bottom:4px}
   input[type="text"], input[type="number"], textarea, select, input[type="datetime-local"]{
     width:100%; padding:10px 12px; background:transparent; color:var(--fg); border:1px solid var(--border);
@@ -309,6 +309,18 @@ async function aesDecrypt(cipherBase64, keyRaw, ivRaw){
 const el = (id)=>document.getElementById(id);
 const aesKey = el('aes-key'), aesIv = el('aes-iv'), keyFmt = el('key-format'), ivFmt = el('iv-format');
 const aesPlain = el('aes-plain'), aesResult = el('aes-result'), aesStatus = el('aes-status');
+
+function aesKeyCheck(){
+    aesKey.value = aesKey.value.substr(0, 32)
+}
+aesKey.addEventListener('input', aesKeyCheck);
+
+function aesIvCheck(){
+    aesIv.value = aesIv.value.substr(0, 16)
+}
+aesIv.addEventListener('input', aesIvCheck);
+
+
 
 el('btn-encrypt').addEventListener('click', async ()=>{
   aesStatus.textContent = '';
