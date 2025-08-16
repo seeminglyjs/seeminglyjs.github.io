@@ -118,22 +118,21 @@ document.getElementById('noteColor').addEventListener('input', ()=>{ config.colo
 });
 
 // GIF 저장 (비동기, 안정화)
-// GIF 저장 (비동기, 안정화)
 document.getElementById('saveGifBtn').addEventListener('click', () => {
     const gif = new GIF({
-        workers: 2,
-        quality: 10,
+        workers: 4, // 워커 수 증가
+        quality: 1, // 최고 품질
         width: config.canvasWidth,
         height: config.canvasHeight,
-        workerScript: '/js/lib/gif.worker.js' // 워커 스크립트 명시
+        workerScript: 'https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js' // 안정적인 CDN 경로
     });
 
-    const frameCount = 50;
-    const delay = 50;
+    const frameCount = 120; // 2초간 60fps (120프레임)
+    const delay = 1000 / 60; // 약 16.67ms (60fps)
     let tempTime = time;
     let i = 0;
 
-    alert("GIF 생성 중입니다. 잠시만 기다려주세요...");
+    alert("고품질 GIF 생성 중입니다. 시간이 조금 걸릴 수 있습니다...");
 
     function addNextFrame() {
         if (i >= frameCount) {
@@ -158,7 +157,7 @@ document.getElementById('saveGifBtn').addEventListener('click', () => {
         gif.addFrame(canvas, { delay: delay, copy: true });
         tempTime += config.speed;
         i++;
-        requestAnimationFrame(addNextFrame); // setTimeout 대신 requestAnimationFrame 사용
+        requestAnimationFrame(addNextFrame);
     }
 
     addNextFrame();
@@ -167,7 +166,7 @@ document.getElementById('saveGifBtn').addEventListener('click', () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'music_notes.gif';
+        a.download = 'music_notes_high_quality.gif';
         a.click();
         URL.revokeObjectURL(url); // 메모리 누수 방지
     });
