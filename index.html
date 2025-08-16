@@ -1,91 +1,522 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Transparent Audio Visualizer</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SeeminglyJS — Dev Tools</title>
+<meta name="color-scheme" content="dark light" />
 <style>
-  body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #fff; }
-  canvas { background: transparent; }
+  :root{
+    --bg: #0b0d10; --fg:#e7ecf3; --muted:#9aa6b2; --card:#12151a; --brand:#6ea8fe;
+    --ok:#2ecc71; --warn:#f39c12; --err:#ff6b6b; --border:#1d232c;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f7fb; --fg:#212938; --muted:#5b6472; --card:#ffffff; --brand:#3867d6; --border:#e6e8ef; }
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  }
+  a{color:var(--brand); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .container{max-width:1200px; margin:0 auto; padding:24px}
+  header{display:flex; gap:16px; align-items:center; margin-bottom:20px; flex-wrap:wrap}
+  .avatar{width:60px; height:60px; border-radius:50%; border:2px solid var(--border); object-fit:cover}
+  .title{font-size:24px; font-weight:800; letter-spacing:.2px}
+  .subtitle{color:var(--muted)}
+  .grid{
+    display:grid; gap:16px;
+    grid-template-columns: repeat(12, 1fr);
+  }
+  .card{
+    grid-column: span 12;
+    background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:16px; box-shadow:0 4px 20px rgba(0,0,0,.15);
+  }
+  @media(min-width:720px){
+    .span-6{grid-column: span 6}
+    .span-4{grid-column: span 4}
+    .span-8{grid-column: span 8}
+    .span-3{grid-column: span 3}
+  }
+  .card h3{margin:0 0 10px; font-size:18px}
+  .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+  .row > *{flex:1 1 auto}
+  .controls{display:flex; gap:8px; flex-wrap:wrap}
+  label{display:block; font-weight:600; margin-top:8px; margin-bottom:4px}
+  input[type="text"], input[type="number"], textarea, select, input[type="datetime-local"]{
+    width:100%; padding:10px 12px; background:transparent; color:var(--fg); border:1px solid var(--border);
+    border-radius:10px; outline:none;
+  }
+  textarea{min-height:120px; resize:vertical}
+  .btn{
+    padding:10px 14px; background:var(--brand); color:white; border:none; border-radius:10px; cursor:pointer; font-weight:700;
+  }
+  .btn.secondary{background:transparent; color:var(--fg); border:1px solid var(--border)}
+  .btn.ghost{background:transparent; color:var(--muted)}
+  .btn:disabled{opacity:.5; cursor:not-allowed}
+  .hint{font-size:12px; color:var(--muted)}
+  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;}
+  .pill{display:inline-flex; gap:6px; align-items:center; border:1px solid var(--border); padding:6px 10px; border-radius:999px; color:var(--muted); font-size:12px}
+  .status-ok{color:var(--ok)}
+  .status-warn{color:var(--warn)}
+  .status-err{color:var(--err)}
+  .copy{
+    border:1px dashed var(--border); padding:8px 10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; gap:8px;
+    background:rgba(127,127,127,.04)
+  }
+  .small{font-size:12px}
+  .spacer{height:6px}
+  .kvs{display:grid; grid-template-columns: 140px 1fr; gap:6px; font-size:13px}
+  code{background:rgba(127,127,127,.08); padding:2px 6px; border-radius:6px}
+  footer{margin-top:20px; color:var(--muted); text-align:center; font-size:12px}
 </style>
 </head>
 <body>
+  <div class="container">
+    <header>
+      <img class="avatar" src="https://avatars.githubusercontent.com/u/67782250?v=4" alt="프로필" />
+      <div>
+        <div class="title">SeeminglyJS — Handy Dev Tools</div>
+        <div class="subtitle">자주 쓰는 유틸 모음 (AES-256, IP, 글자·바이트, JSON 정렬, 타이머, 한/영 입숨)</div>
+        <div class="spacer"></div>
+        <div class="row">
+          <div class="pill">Blog: <a href="https://seeminglyjs.tistory.com" target="_blank" rel="noopener">seeminglyjs.tistory.com</a></div>
+          <div class="pill">GitHub Pages: <a href="https://seeminglyjs.github.io" target="_blank" rel="noopener">seeminglyjs.github.io</a></div>
+        </div>
+      </div>
+    </header>
 
-<h2>오디오 업로드 후 비주얼라이저 생성</h2>
-<input type="file" id="audioUpload" accept="audio/*">
-<button id="startBtn">비주얼라이저 시작 & 저장</button>
+    <div class="grid">
+      <!-- Profile Card -->
+      <section class="card span-4" id="profile-card">
+        <h3>🪪 프로필 카드</h3>
+        <div class="kvs">
+          <div>이름</div><div class="mono">훈남 성우님</div>
+          <div>역할</div><div class="mono">Spring Boot / Flutter / PostgreSQL</div>
+          <div>블로그</div><div><a href="https://seeminglyjs.tistory.com" target="_blank" rel="noopener">seeminglyjs.tistory.com</a></div>
+          <div>GitHub</div><div><a href="https://github.com/seeminglyjs" target="_blank" rel="noopener">@seeminglyjs</a></div>
+        </div>
+      </section>
 
-<canvas id="visualizer" width="800" height="400"></canvas>
+      <!-- AES-256 Tool -->
+      <section class="card span-8" id="aes-card">
+        <h3>🔒 AES-256 (CBC) 암·복호화</h3>
+        <div class="hint">키 32바이트(=256비트), IV 16바이트 필요. 포맷 선택: <code>hex</code>/<code>base64</code>/<code>utf8</code>. 결과는 <code>base64</code>로 표시됩니다.</div>
+        <div class="row">
+          <div>
+            <label for="aes-key">Key</label>
+            <input id="aes-key" class="mono" type="text" placeholder="예) hex 64자 / base64 / 일반 문자열(utf8)" />
+          </div>
+          <div style="max-width:140px">
+            <label for="key-format">Key 포맷</label>
+            <select id="key-format">
+              <option>hex</option>
+              <option>base64</option>
+              <option selected>utf8</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="aes-iv">IV</label>
+            <input id="aes-iv" class="mono" type="text" placeholder="예) hex 32자 / base64 / 일반 문자열(utf8)" />
+          </div>
+          <div style="max-width:140px">
+            <label for="iv-format">IV 포맷</label>
+            <select id="iv-format">
+              <option>hex</option>
+              <option>base64</option>
+              <option selected>utf8</option>
+            </select>
+          </div>
+        </div>
+        <label for="aes-plain">평문 (암호화 입력) / 복호화 대상(base64)</label>
+        <textarea id="aes-plain" class="mono" placeholder="암호화: 평문 입력, 복호화: base64 암호문 입력"></textarea>
+        <div class="controls">
+          <button class="btn" id="btn-encrypt">암호화</button>
+          <button class="btn secondary" id="btn-decrypt">복호화</button>
+          <button class="btn ghost" id="btn-clear-aes">초기화</button>
+        </div>
+        <label>결과</label>
+        <div class="copy">
+          <div class="mono small" id="aes-result" style="word-break:break-all"></div>
+          <button class="btn" id="copy-aes">복사</button>
+        </div>
+        <div class="hint" id="aes-status"></div>
+      </section>
+
+      <!-- IP Info -->
+      <section class="card span-6" id="ip-card">
+        <h3>🌐 내 IP / 네트워크 정보</h3>
+        <div class="controls">
+          <button class="btn" id="btn-ip">IP 정보 불러오기</button>
+        </div>
+        <div class="kvs mono" id="ip-info"></div>
+        <div class="hint">ipify / ipapi를 호출합니다. 브라우저/네트워크 정책에 따라 일부 필드가 비어 있을 수 있습니다.</div>
+      </section>
+
+      <!-- Text Counter -->
+      <section class="card span-6" id="count-card">
+        <h3>🔢 글자수 / 바이트 카운터 (UTF-8)</h3>
+        <textarea id="count-text" placeholder="여기에 텍스트 입력"></textarea>
+        <div class="row">
+          <div class="pill">문자 수: <span id="char-count">0</span></div>
+          <div class="pill">바이트 수(UTF-8): <span id="byte-count">0</span></div>
+        </div>
+      </section>
+
+      <!-- JSON Pretty -->
+      <section class="card span-6" id="json-card">
+        <h3>🧩 JSON 포매터 (유효성 검사)</h3>
+        <textarea id="json-input" class="mono" placeholder='{"foo": "bar", "arr":[3,1,2]}'></textarea>
+        <div class="controls">
+          <button class="btn" id="btn-json">정렬/정규화</button>
+          <button class="btn secondary" id="btn-json-min">최소화</button>
+          <button class="btn ghost" id="btn-json-clear">초기화</button>
+        </div>
+        <label>결과</label>
+        <textarea id="json-output" class="mono" readonly></textarea>
+        <div class="hint" id="json-status"></div>
+      </section>
+
+      <!-- Timer -->
+      <section class="card span-6" id="timer-card">
+        <h3>⏰ 타이머 / 알람</h3>
+        <div class="row">
+          <div>
+            <label for="timer-min">분</label>
+            <input id="timer-min" type="number" min="0" step="1" value="0" />
+          </div>
+          <div>
+            <label for="timer-sec">초</label>
+            <input id="timer-sec" type="number" min="0" max="59" step="1" value="10" />
+          </div>
+        </div>
+        <div class="controls">
+          <button class="btn" id="btn-timer-start">시작</button>
+          <button class="btn secondary" id="btn-timer-stop">정지</button>
+          <span class="pill">남은 시간: <span id="timer-remaining" class="mono">00:10</span></span>
+        </div>
+        <div class="hint">종료 시 벨소리 + 탭 제목 점멸 + (권한 허용 시) 시스템 알림을 보냅니다.</div>
+      </section>
+
+      <!-- Lorem/Ipsum -->
+      <section class="card span-6" id="lipsum-card">
+        <h3>📝 입숨(무작위 문장) 생성 — 한글/영문</h3>
+        <div class="row">
+          <div>
+            <label for="lipsum-lang">언어</label>
+            <select id="lipsum-lang">
+              <option value="ko" selected>한국어</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <div>
+            <label for="lipsum-type">형태</label>
+            <select id="lipsum-type">
+              <option value="sentences">문장</option>
+              <option value="paragraphs" selected>문단</option>
+            </select>
+          </div>
+          <div>
+            <label for="lipsum-count">개수</label>
+            <input id="lipsum-count" type="number" min="1" max="30" value="3" />
+          </div>
+        </div>
+        <div class="controls">
+          <button class="btn" id="btn-lipsum">생성</button>
+          <button class="btn secondary" id="btn-lipsum-copy">복사</button>
+        </div>
+        <textarea id="lipsum-output" class="mono" readonly></textarea>
+      </section>
+    </div>
+
+    <footer>© <span id="year"></span> seeminglyjs — Built for speed, privacy, and correctness.</footer>
+  </div>
 
 <script>
-const canvas = document.getElementById('visualizer');
-const ctx = canvas.getContext('2d');
-let audioBuffer, audioContext, analyser, source;
-let animationId;
+/* ===== Utility: encoders/decoders ===== */
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
 
-document.getElementById('audioUpload').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const arrayBuffer = await file.arrayBuffer();
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    source = audioContext.createBufferSource();
-    source.buffer = audioBuffer;
-    analyser = audioContext.createAnalyser();
-    source.connect(analyser);
-    analyser.connect(audioContext.destination);
-    window.audioFileName = file.name.replace(/\.[^/.]+$/, ""); // 확장자 제거
-});
+/** base64 ⇄ Uint8Array */
+const b64 = {
+  encode: (buf) => {
+    let bin = '';
+    const bytes = new Uint8Array(buf);
+    const len = bytes.length;
+    for (let i=0;i<len;i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  },
+  decode: (s) => {
+    const bin = atob(s);
+    const out = new Uint8Array(bin.length);
+    for (let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+};
 
-function drawVisualizer() {
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    analyser.getByteFrequencyData(dataArray);
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const barWidth = (canvas.width / bufferLength) * 2.5;
-    let x = 0;
-
-    for(let i = 0; i < bufferLength; i++) {
-        const barHeight = dataArray[i];
-        ctx.fillStyle = `rgba(0, 200, 255, 0.7)`; // 투명 효과
-        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-        x += barWidth + 1;
-    }
-
-    animationId = requestAnimationFrame(drawVisualizer);
+function hexToBytes(hex){
+  const s = hex.trim();
+  if(!/^[0-9a-fA-F]+$/.test(s) || s.length % 2 !== 0) throw new Error('유효하지 않은 hex');
+  const out = new Uint8Array(s.length/2);
+  for (let i=0;i<s.length;i+=2) out[i/2] = parseInt(s.slice(i, i+2), 16);
+  return out;
 }
 
-document.getElementById('startBtn').addEventListener('click', async () => {
-    if (!source) return alert("오디오 파일을 먼저 업로드해주세요.");
-    
-    // 비주얼라이저 시작
-    drawVisualizer();
-    source.start(0);
+function parseKeyIv(input, format, expectedLen){
+  if(format === 'hex'){
+    const bytes = hexToBytes(input);
+    if(bytes.length !== expectedLen) throw new Error(`길이 오류: ${expectedLen}바이트 필요`);
+    return bytes;
+  }else if(format === 'base64'){
+    const bytes = b64.decode(input);
+    if(bytes.length !== expectedLen) throw new Error(`길이 오류: ${expectedLen}바이트 필요`);
+    return bytes;
+  }else{
+    // utf8
+    const bytes = textEncoder.encode(input);
+    if(bytes.length !== expectedLen) throw new Error(`길이 오류: ${expectedLen}바이트 필요`);
+    return bytes;
+  }
+}
 
-    // WebM 녹화 설정
-    const stream = canvas.captureStream(60); // 60fps
-    const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
-    let chunks = [];
-    mediaRecorder.ondataavailable = e => chunks.push(e.data);
-    mediaRecorder.onstop = e => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${window.audioFileName}_비주얼.webm`;
-        a.click();
-        cancelAnimationFrame(animationId);
-        audioContext.close();
-    };
-    
-    mediaRecorder.start();
+/* ===== AES-256-CBC Encrypt/Decrypt ===== */
+async function aesImportKey(raw32){
+  return crypto.subtle.importKey("raw", raw32, {name:"AES-CBC"}, false, ["encrypt","decrypt"]);
+}
+async function aesEncrypt(plain, keyRaw, ivRaw){
+  const key = await aesImportKey(keyRaw);
+  const data = textEncoder.encode(plain);
+  const ct = await crypto.subtle.encrypt({name:"AES-CBC", iv: ivRaw}, key, data);
+  return new Uint8Array(ct);
+}
+async function aesDecrypt(cipherBase64, keyRaw, ivRaw){
+  const key = await aesImportKey(keyRaw);
+  const data = b64.decode(cipherBase64);
+  const pt = await crypto.subtle.decrypt({name:"AES-CBC", iv: ivRaw}, key, data);
+  return textDecoder.decode(pt);
+}
 
-    // 오디오 끝나면 녹화도 종료
-    source.onended = () => mediaRecorder.stop();
+/* ===== AES UI ===== */
+const el = (id)=>document.getElementById(id);
+const aesKey = el('aes-key'), aesIv = el('aes-iv'), keyFmt = el('key-format'), ivFmt = el('iv-format');
+const aesPlain = el('aes-plain'), aesResult = el('aes-result'), aesStatus = el('aes-status');
+
+el('btn-encrypt').addEventListener('click', async ()=>{
+  aesStatus.textContent = '';
+  aesResult.textContent = '';
+  try{
+    const key = parseKeyIv(aesKey.value, keyFmt.value, 32);
+    const iv  = parseKeyIv(aesIv.value,  ivFmt.value, 16);
+    const ct = await aesEncrypt(aesPlain.value, key, iv);
+    aesResult.textContent = b64.encode(ct);
+    aesStatus.innerHTML = `<span class="status-ok">암호화 완료</span> (출력: base64)`;
+  }catch(e){
+    aesStatus.innerHTML = `<span class="status-err">오류:</span> ${e.message}`;
+  }
 });
-</script>
 
+el('btn-decrypt').addEventListener('click', async ()=>{
+  aesStatus.textContent = '';
+  aesResult.textContent = '';
+  try{
+    const key = parseKeyIv(aesKey.value, keyFmt.value, 32);
+    const iv  = parseKeyIv(aesIv.value,  ivFmt.value, 16);
+    const pt = await aesDecrypt(aesPlain.value.trim(), key, iv);
+    aesResult.textContent = pt;
+    aesStatus.innerHTML = `<span class="status-ok">복호화 완료</span>`;
+  }catch(e){
+    aesStatus.innerHTML = `<span class="status-err">오류:</span> ${e.message}`;
+  }
+});
+el('btn-clear-aes').addEventListener('click', ()=>{
+  aesKey.value=''; aesIv.value=''; aesPlain.value=''; aesResult.textContent=''; aesStatus.textContent='';
+});
+el('copy-aes').addEventListener('click', async ()=>{
+  if(!aesResult.textContent) return;
+  await navigator.clipboard.writeText(aesResult.textContent);
+});
+
+/* ===== IP Info ===== */
+const ipInfoBox = el('ip-info');
+el('btn-ip').addEventListener('click', async ()=>{
+  ipInfoBox.textContent = '조회 중...';
+  try{
+    const ipRes = await fetch('https://api64.ipify.org?format=json',{cache:'no-store'});
+    const {ip} = await ipRes.json();
+    let geo = {};
+    try{
+      const g = await fetch('https://ipapi.co/json/',{cache:'no-store'});
+      geo = await g.json();
+    }catch(_){}
+    ipInfoBox.innerHTML = `
+      <div>IP</div><div>${ip || ''}</div>
+      <div>국가/도시</div><div>${geo.country_name || ''} ${geo.region || ''} ${geo.city || ''}</div>
+      <div>ISP</div><div>${geo.org || ''}</div>
+      <div>시간대</div><div>${geo.timezone || ''}</div>
+      <div>좌표</div><div>${geo.latitude ?? ''}, ${geo.longitude ?? ''}</div>
+    `;
+  }catch(e){
+    ipInfoBox.innerHTML = `<div class="status-err">조회 실패</div><div class="mono small">${e.message}</div>`;
+  }
+});
+
+/* ===== Text Counter (UTF-8) ===== */
+const countText = el('count-text'), charCount = el('char-count'), byteCount = el('byte-count');
+function updateCounts(){
+  const v = countText.value;
+  charCount.textContent = [...v].length; // 유니코드 안전
+  byteCount.textContent = textEncoder.encode(v).length;
+}
+countText.addEventListener('input', updateCounts);
+updateCounts();
+
+/* ===== JSON Pretty ===== */
+const jsonInput = el('json-input'), jsonOutput = el('json-output'), jsonStatus = el('json-status');
+el('btn-json').addEventListener('click', ()=>{
+  jsonStatus.textContent = '';
+  jsonOutput.value = '';
+  try{
+    const obj = JSON.parse(jsonInput.value);
+    jsonOutput.value = JSON.stringify(obj, null, 2);
+    jsonStatus.innerHTML = `<span class="status-ok">유효한 JSON</span> — 정렬 완료`;
+  }catch(e){
+    jsonStatus.innerHTML = `<span class="status-err">유효하지 않은 JSON</span> — ${e.message}`;
+  }
+});
+el('btn-json-min').addEventListener('click', ()=>{
+  jsonStatus.textContent = '';
+  jsonOutput.value = '';
+  try{
+    const obj = JSON.parse(jsonInput.value);
+    jsonOutput.value = JSON.stringify(obj);
+    jsonStatus.innerHTML = `<span class="status-ok">유효한 JSON</span> — 최소화 완료`;
+  }catch(e){
+    jsonStatus.innerHTML = `<span class="status-err">유효하지 않은 JSON</span> — ${e.message}`;
+  }
+});
+el('btn-json-clear').addEventListener('click', ()=>{
+  jsonInput.value=''; jsonOutput.value=''; jsonStatus.textContent='';
+});
+
+/* ===== Timer ===== */
+let timerId = null, blinkId = null, remainingMs = 0;
+const timerMin = el('timer-min'), timerSec = el('timer-sec'), rem = el('timer-remaining');
+function fmt(ms){
+  const s = Math.max(0, Math.floor(ms/1000));
+  const m = Math.floor(s/60), r = s%60;
+  return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;
+}
+function updateRemaining(){
+  rem.textContent = fmt(remainingMs);
+}
+function stopBlink(){
+  if(blinkId){ clearInterval(blinkId); blinkId=null; document.title = document.title.replace(/^⏰\s+/,''); }
+}
+function notify(){
+  // Web Notification
+  if('Notification' in window){
+    if(Notification.permission === 'granted'){
+      new Notification('타이머 종료', { body:'설정한 시간이 종료되었습니다.' });
+    }else if(Notification.permission !== 'denied'){
+      Notification.requestPermission();
+    }
+  }
+}
+function ring(){
+  // WebAudio: 짧은 벨소리
+  const ctx = new (window.AudioContext||window.webkitAudioContext)();
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.connect(g); g.connect(ctx.destination);
+  o.type = 'sine'; o.frequency.value = 880;
+  g.gain.setValueAtTime(0.0001, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.0);
+  o.start(); o.stop(ctx.currentTime + 1.0);
+  notify();
+  // 타이틀 점멸
+  const base = document.title;
+  let on=false;
+  blinkId = setInterval(()=>{ on=!on; document.title = (on?'⏰ ':'') + base; }, 600);
+  setTimeout(stopBlink, 15000);
+}
+el('btn-timer-start').addEventListener('click', ()=>{
+  const m = Math.max(0, parseInt(timerMin.value||'0',10));
+  const s = Math.max(0, Math.min(59, parseInt(timerSec.value||'0',10)));
+  remainingMs = (m*60 + s)*1000;
+  if(remainingMs<=0) return;
+  if(timerId) clearInterval(timerId);
+  stopBlink();
+  updateRemaining();
+  const start = performance.now();
+  const end = start + remainingMs;
+  timerId = setInterval(()=>{
+    const now = performance.now();
+    remainingMs = Math.max(0, Math.floor(end - now));
+    updateRemaining();
+    if(remainingMs<=0){
+      clearInterval(timerId); timerId=null;
+      ring();
+    }
+  }, 200);
+});
+el('btn-timer-stop').addEventListener('click', ()=>{
+  if(timerId) clearInterval(timerId);
+  timerId = null; remainingMs = 0; updateRemaining(); stopBlink();
+});
+
+/* ===== Lipsum ===== */
+const KO_WORDS = "여름 바람 음악 도시 바다 감성 새벽 리듬 드리프트 산책 설렘 파도 햇살 노을 편지 기억 그림자 귓가 비밀 하모니 선율 흐름 별빛 향기 온기 이야기 무드 필름 스케치 휴식 균형 시선 풍경 회상".split(' ');
+const EN_WORDS = "summer wind music city ocean vibe dawn rhythm drift stroll flutter wave sunlight sunset letter memory shadow whisper secret harmony melody flow starlight scent warmth story mood film sketch rest balance gaze landscape recall".split(' ');
+function randomChoice(arr){ return arr[Math.floor(Math.random()*arr.length)] }
+function makeSentence(words){
+  const len = 6 + Math.floor(Math.random()*8); // 6~13 words
+  const w = [];
+  for(let i=0;i<len;i++) w.push(randomChoice(words));
+  let s = w.join(' ');
+  s = s.charAt(0).toUpperCase() + s.slice(1);
+  return s + '.';
+}
+function makeKoreanSentence(){
+  const len = 6 + Math.floor(Math.random()*8);
+  const w = [];
+  for(let i=0;i<len;i++) w.push(randomChoice(KO_WORDS));
+  return w.join(' ') + '다.';
+}
+function generateLipsum(lang, type, count){
+  const out = [];
+  const maker = lang==='ko'? makeKoreanSentence : ()=>makeSentence(EN_WORDS);
+  if(type==='sentences'){
+    for(let i=0;i<count;i++) out.push(maker());
+    return out.join(' ');
+  }else{
+    for(let p=0;p<count;p++){
+      const sCount = 2 + Math.floor(Math.random()*3); // 2~4 sentences
+      const sentences = [];
+      for(let i=0;i<sCount;i++) sentences.push(maker());
+      out.push(sentences.join(' '));
+    }
+    return out.join('\n\n');
+  }
+}
+const lipsumOut = el('lipsum-output');
+el('btn-lipsum').addEventListener('click', ()=>{
+  const lang = el('lipsum-lang').value;
+  const type = el('lipsum-type').value;
+  const count = Math.max(1, Math.min(30, parseInt(el('lipsum-count').value||'3',10)));
+  lipsumOut.value = generateLipsum(lang, type, count);
+});
+el('btn-lipsum-copy').addEventListener('click', async ()=>{
+  if(!lipsumOut.value) return;
+  await navigator.clipboard.writeText(lipsumOut.value);
+});
+
+/* ===== Footer year ===== */
+el('year').textContent = new Date().getFullYear();
+</script>
 </body>
 </html>
