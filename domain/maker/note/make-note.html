@@ -29,7 +29,7 @@ button { padding:8px 15px; font-size:14px; cursor:pointer; }
 
 <canvas id="musicCanvas"></canvas>
 
-<script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+<script src="/js/lib/gif.js"></script>
 <script>
 const canvas = document.getElementById('musicCanvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -118,12 +118,14 @@ document.getElementById('noteColor').addEventListener('input', ()=>{ config.colo
 });
 
 // GIF 저장 (비동기, 안정화)
-document.getElementById('saveGifBtn').addEventListener('click', ()=>{
+// GIF 저장 (비동기, 안정화)
+document.getElementById('saveGifBtn').addEventListener('click', () => {
     const gif = new GIF({
-        workers:2,
-        quality:10,
-        width:config.canvasWidth,
-        height:config.canvasHeight
+        workers: 2,
+        quality: 10,
+        width: config.canvasWidth,
+        height: config.canvasHeight,
+        workerScript: '/js/lib/gif.worker.js' // 워커 스크립트 명시
     });
 
     const frameCount = 50;
@@ -134,36 +136,45 @@ document.getElementById('saveGifBtn').addEventListener('click', ()=>{
     alert("GIF 생성 중입니다. 잠시만 기다려주세요...");
 
     function addNextFrame() {
-        if(i >= frameCount){
+        if (i >= frameCount) {
             gif.render();
             return;
         }
 
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        const startX = (canvas.width - notesString.length*fontSize*0.8)/2;
-        const centerY = canvas.height/2;
+        // 캔버스 상태 초기화 및 명시적 설정
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = `${fontSize}px Arial`;
+        ctx.fillStyle = config.color;
+        const startX = (canvas.width - notesString.length * fontSize * 0.8) / 2;
+        const centerY = canvas.height / 2;
 
-        for(let j=0;j<notesString.length;j++){
-            let charX = startX + j*fontSize*0.8;
+        for (let j = 0; j < notesString.length; j++) {
+            let charX = startX + j * fontSize * 0.8;
             let offsetY = Math.sin(tempTime + j) * config.waveHeight;
-            let charY = Math.min(canvas.height - fontSize/2, Math.max(fontSize/2, centerY + offsetY));
+            let charY = Math.min(canvas.height - fontSize / 2, Math.max(fontSize / 2, centerY + offsetY));
             ctx.fillText(notesString[j], charX, charY);
         }
 
-        gif.addFrame(canvas, {delay:delay, copy:true});
+        gif.addFrame(canvas, { delay: delay, copy: true });
         tempTime += config.speed;
         i++;
-        setTimeout(addNextFrame, 0); // 비동기 처리
+        requestAnimationFrame(addNextFrame); // setTimeout 대신 requestAnimationFrame 사용
     }
 
     addNextFrame();
 
-    gif.on('finished', function(blob){
+    gif.on('finished', function(blob) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = 'music_notes.gif';
         a.click();
+        URL.revokeObjectURL(url); // 메모리 누수 방지
+    });
+
+    gif.on('error', function(error) {
+        console.error('GIF 생성 오류:', error);
+        alert('GIF 생성 중 오류가 발생했습니다. 콘솔을 확인해주세요.');
     });
 });
 </script>
