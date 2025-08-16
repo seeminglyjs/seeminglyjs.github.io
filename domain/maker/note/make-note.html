@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Music Notes Animator</title>
+<title>Music Notes Wave Animator</title>
 <style>
 body { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; min-height:100vh; background:#111; color:#fff; font-family:Arial, sans-serif; margin:0; padding:20px; }
 #controls { display:flex; flex-wrap:wrap; gap:15px; margin-bottom:20px; }
@@ -20,7 +20,7 @@ button { padding:8px 15px; font-size:14px; cursor:pointer; }
     <label>최대 음표 수: <input type="number" id="maxNotes" value="7" min="1" max="10"></label>
     <label>캔버스 가로: <input type="number" id="canvasWidth" value="800" min="100"></label>
     <label>캔버스 세로: <input type="number" id="canvasHeight" value="200" min="50"></label>
-    <label>속도: <input type="number" id="speed" value="2" min="1" max="20"></label>
+    <label>속도: <input type="number" id="speed" value="0.05" step="0.01" min="0.01" max="0.2"></label>
     <label>랜덤 음표: <input type="checkbox" id="randomNotes" checked></label>
     <label>음표 선택 (쉼표로 구분): <input type="text" id="customNotes" value="♫,♪,♬,♩,♭"></label>
     <button id="saveGifBtn">GIF 저장</button>
@@ -39,14 +39,14 @@ let config = {
     canvasHeight:200,
     minNotes:3,
     maxNotes:7,
-    speed:2,
+    speed:0.05,
     randomNotes:true,
     customNotes:['♫','♪','♬','♩','♭']
 };
 
 let notesString = '';
-let x = -50;
 let fontSize = config.canvasHeight*0.6;
+let time = 0;
 
 // GUI에서 설정값 읽기
 function updateConfigFromGUI() {
@@ -79,25 +79,21 @@ function generateNotes() {
     return notes.join('');
 }
 
-// 애니메이션
+// 애니메이션 (제자리 물결)
 function draw() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.font = `${fontSize}px Arial`;
     ctx.fillStyle = config.color;
-    
+
+    let startX = (canvas.width - notesString.length*fontSize*0.8)/2;
     for(let i=0;i<notesString.length;i++){
         let char = notesString[i];
-        let charX = x + i*fontSize*0.8;
-        let charY = canvas.height/2 + Math.sin((x+i*20)/20)*20;
+        let charX = startX + i*fontSize*0.8;
+        let charY = canvas.height/2 + Math.sin(time + i)*20; // 물결 효과
         ctx.fillText(char,charX,charY);
     }
 
-    x += config.speed;
-    if(x > canvas.width + 50){
-        x = -50;
-        notesString = generateNotes();
-    }
-
+    time += config.speed;
     requestAnimationFrame(draw);
 }
 
@@ -115,20 +111,33 @@ document.getElementById('noteColor').addEventListener('input', ()=>{ config.colo
     });
 });
 
-// GIF 저장
+// GIF 저장 (안정화)
 document.getElementById('saveGifBtn').addEventListener('click', ()=>{
-    const gif = new GIF({workers:2, quality:10, width:config.canvasWidth, height:config.canvasHeight});
-    let tempX = x;
-    for(let i=0;i<50;i++){ // 프레임 수
+    const gif = new GIF({
+        workers:2,
+        quality:10,
+        width:config.canvasWidth,
+        height:config.canvasHeight
+    });
+
+    const frameCount = 50;
+    const delay = 50;
+    let tempTime = time;
+
+    alert("GIF 생성 중입니다. 잠시만 기다려주세요...");
+
+    for(let i=0;i<frameCount;i++){
         ctx.clearRect(0,0,canvas.width,canvas.height);
+        let startX = (canvas.width - notesString.length*fontSize*0.8)/2;
         for(let j=0;j<notesString.length;j++){
-            let charX = tempX + j*fontSize*0.8;
-            let charY = canvas.height/2 + Math.sin((tempX+j*20)/20)*20;
+            let charX = startX + j*fontSize*0.8;
+            let charY = canvas.height/2 + Math.sin(tempTime + j)*20;
             ctx.fillText(notesString[j], charX, charY);
         }
-        gif.addFrame(ctx,{copy:true,delay:50});
-        tempX += config.speed; // 속도 반영
+        gif.addFrame(canvas, {delay:delay, copy:true}); // canvas 전달 방식 안정적
+        tempTime += config.speed;
     }
+
     gif.on('finished', function(blob){
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -136,6 +145,7 @@ document.getElementById('saveGifBtn').addEventListener('click', ()=>{
         a.download = 'music_notes.gif';
         a.click();
     });
+
     gif.render();
 });
 </script>
