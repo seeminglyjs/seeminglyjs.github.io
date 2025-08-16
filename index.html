@@ -98,10 +98,13 @@
       <section class="card span-4" id="profile-card">
         <h3>프로필 카드</h3>
         <div class="kvs">
-          <div>이름</div><div class="mono">훈남 성우님</div>
+          <div>이름</div><div class="mono">장성우</div>
           <div>역할</div><div class="mono">Spring Boot / Flutter / PostgreSQL</div>
           <div>블로그</div><div><a href="https://seeminglyjs.tistory.com" target="_blank" rel="noopener">seeminglyjs.tistory.com</a></div>
           <div>GitHub</div><div><a href="https://github.com/seeminglyjs" target="_blank" rel="noopener">@seeminglyjs</a></div>
+          
+          <div class="mono">-추가링크-</div>
+          <div>GitHub</div><div><a href="https://github.com/seeminglyjs/domain/maker/note/make-note" target="_blank" rel="noopener">음표 GIF 만들기</a></div>
         </div>
       </section>
 
@@ -319,8 +322,6 @@ function aesIvCheck(){
     aesIv.value = aesIv.value.substr(0, 16)
 }
 aesIv.addEventListener('input', aesIvCheck);
-
-
 
 el('btn-encrypt').addEventListener('click', async ()=>{
   aesStatus.textContent = '';
