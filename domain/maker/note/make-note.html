@@ -21,6 +21,7 @@ button { padding:8px 15px; font-size:14px; cursor:pointer; }
     <label>캔버스 가로: <input type="number" id="canvasWidth" value="800" min="100"></label>
     <label>캔버스 세로: <input type="number" id="canvasHeight" value="200" min="50"></label>
     <label>속도: <input type="number" id="speed" value="0.05" step="0.01" min="0.01" max="0.2"></label>
+    <label>물결 높이: <input type="number" id="waveHeight" value="20" min="5" max="100"></label>
     <label>랜덤 음표: <input type="checkbox" id="randomNotes" checked></label>
     <label>음표 선택 (쉼표로 구분): <input type="text" id="customNotes" value="♫,♪,♬,♩,♭"></label>
     <button id="saveGifBtn">GIF 저장</button>
@@ -40,6 +41,7 @@ let config = {
     minNotes:3,
     maxNotes:7,
     speed:0.05,
+    waveHeight:20,
     randomNotes:true,
     customNotes:['♫','♪','♬','♩','♭']
 };
@@ -56,12 +58,13 @@ function updateConfigFromGUI() {
     config.canvasWidth = parseInt(document.getElementById('canvasWidth').value);
     config.canvasHeight = parseInt(document.getElementById('canvasHeight').value);
     config.speed = parseFloat(document.getElementById('speed').value);
+    config.waveHeight = parseFloat(document.getElementById('waveHeight').value);
     config.randomNotes = document.getElementById('randomNotes').checked;
     config.customNotes = document.getElementById('customNotes').value.split(',').map(s=>s.trim()).filter(s=>s);
 
     canvas.width = config.canvasWidth;
     canvas.height = config.canvasHeight;
-    fontSize = config.canvasHeight*0.6;
+    fontSize = Math.min(config.canvasHeight*0.6, config.canvasHeight/2 - config.waveHeight); // 음표 크기와 물결 높이 고려
 }
 
 // 음표 문자열 생성
@@ -85,11 +88,14 @@ function draw() {
     ctx.font = `${fontSize}px Arial`;
     ctx.fillStyle = config.color;
 
-    let startX = (canvas.width - notesString.length*fontSize*0.8)/2;
+    const startX = (canvas.width - notesString.length*fontSize*0.8)/2;
+    const centerY = canvas.height/2;
+
     for(let i=0;i<notesString.length;i++){
         let char = notesString[i];
         let charX = startX + i*fontSize*0.8;
-        let charY = canvas.height/2 + Math.sin(time + i)*20; // 물결 효과
+        let offsetY = Math.sin(time + i) * config.waveHeight;
+        let charY = Math.min(canvas.height - fontSize/2, Math.max(fontSize/2, centerY + offsetY));
         ctx.fillText(char,charX,charY);
     }
 
@@ -104,14 +110,14 @@ draw();
 
 // GUI 이벤트
 document.getElementById('noteColor').addEventListener('input', ()=>{ config.color=document.getElementById('noteColor').value });
-['minNotes','maxNotes','canvasWidth','canvasHeight','speed','randomNotes','customNotes'].forEach(id=>{
+['minNotes','maxNotes','canvasWidth','canvasHeight','speed','waveHeight','randomNotes','customNotes'].forEach(id=>{
     document.getElementById(id).addEventListener('change', ()=>{
         updateConfigFromGUI();
         notesString = generateNotes();
     });
 });
 
-// GIF 저장 (안정화)
+// GIF 저장 (비동기, 안정화)
 document.getElementById('saveGifBtn').addEventListener('click', ()=>{
     const gif = new GIF({
         workers:2,
@@ -123,20 +129,34 @@ document.getElementById('saveGifBtn').addEventListener('click', ()=>{
     const frameCount = 50;
     const delay = 50;
     let tempTime = time;
+    let i = 0;
 
     alert("GIF 생성 중입니다. 잠시만 기다려주세요...");
 
-    for(let i=0;i<frameCount;i++){
+    function addNextFrame() {
+        if(i >= frameCount){
+            gif.render();
+            return;
+        }
+
         ctx.clearRect(0,0,canvas.width,canvas.height);
-        let startX = (canvas.width - notesString.length*fontSize*0.8)/2;
+        const startX = (canvas.width - notesString.length*fontSize*0.8)/2;
+        const centerY = canvas.height/2;
+
         for(let j=0;j<notesString.length;j++){
             let charX = startX + j*fontSize*0.8;
-            let charY = canvas.height/2 + Math.sin(tempTime + j)*20;
+            let offsetY = Math.sin(tempTime + j) * config.waveHeight;
+            let charY = Math.min(canvas.height - fontSize/2, Math.max(fontSize/2, centerY + offsetY));
             ctx.fillText(notesString[j], charX, charY);
         }
-        gif.addFrame(canvas, {delay:delay, copy:true}); // canvas 전달 방식 안정적
+
+        gif.addFrame(canvas, {delay:delay, copy:true});
         tempTime += config.speed;
+        i++;
+        setTimeout(addNextFrame, 0); // 비동기 처리
     }
+
+    addNextFrame();
 
     gif.on('finished', function(blob){
         const url = URL.createObjectURL(blob);
@@ -145,8 +165,6 @@ document.getElementById('saveGifBtn').addEventListener('click', ()=>{
         a.download = 'music_notes.gif';
         a.click();
     });
-
-    gif.render();
 });
 </script>
 
