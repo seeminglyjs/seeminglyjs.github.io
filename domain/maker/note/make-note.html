@@ -1,525 +1,137 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>음표 만들기 — Note Maker</title>
-
-<!-- gif.js (CDN) -->
-<!-- JS 불러오기 -->
-<script src="/js/lib/gif.js"></script>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music Notes Animator</title>
 <style>
-  :root{
-    --bg:#0b1220; --card:#0f1720; --muted:#98a1ad; --accent:#6ee7b7;
-    --glass: rgba(255,255,255,0.04);
-  }
-  html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;}
-  body{background:linear-gradient(180deg,var(--bg),#061021); color:#e6eef6; display:flex; gap:20px; align-items:flex-start; padding:28px;}
-  .panel{background:var(--card); border-radius:12px; padding:16px; box-shadow:0 6px 30px rgba(2,6,23,0.6); width:340px;}
-  h1{font-size:18px;margin:0 0 12px 0}
-  label{display:block;font-size:13px;color:var(--muted); margin-top:10px}
-  .row{display:flex;gap:8px;align-items:center;margin-top:8px}
-  input[type=range]{width:100%}
-  select,input[type=number],button{background:var(--glass); border:1px solid rgba(255,255,255,0.04); color:inherit;padding:8px;border-radius:8px}
-  button{cursor:pointer}
-  .preview{background:transparent;border-radius:12px; padding:12px;display:flex;flex-direction:column;align-items:center; justify-content:center;}
-  canvas{border-radius:8px; background:transparent; display:block; box-shadow:0 10px 30px rgba(2,6,23,0.6)}
-  .palette{display:flex;gap:8px;margin-top:8px}
-  .swatch{width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid rgba(0,0,0,0.25)}
-  .small{font-size:12px;color:var(--muted)}
-  .controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
-  .footer{font-size:12px;color:var(--muted); margin-top:10px}
-  .download-link{display:inline-block;margin-top:8px;padding:8px 10px;border-radius:8px;background:#111827;color:#dbeafe;text-decoration:none}
+body { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; min-height:100vh; background:#111; color:#fff; font-family:Arial, sans-serif; margin:0; padding:20px; }
+#controls { display:flex; flex-wrap:wrap; gap:15px; margin-bottom:20px; }
+#controls label { display:flex; flex-direction:column; font-size:14px; }
+canvas { background:transparent; display:block; border:1px solid #444; }
+button { padding:8px 15px; font-size:14px; cursor:pointer; }
 </style>
 </head>
 <body>
 
-  <div class="panel">
-    <h1>음표 만들기 — 설정</h1>
+<div id="controls">
+    <label>음표 색상: <input type="color" id="noteColor" value="#ff00ff"></label>
+    <label>최소 음표 수: <input type="number" id="minNotes" value="3" min="1" max="10"></label>
+    <label>최대 음표 수: <input type="number" id="maxNotes" value="7" min="1" max="10"></label>
+    <label>캔버스 가로: <input type="number" id="canvasWidth" value="800" min="100"></label>
+    <label>캔버스 세로: <input type="number" id="canvasHeight" value="200" min="50"></label>
+    <label>랜덤 음표: <input type="checkbox" id="randomNotes" checked></label>
+    <label>음표 선택 (쉼표로 구분): <input type="text" id="customNotes" value="♫,♪,♬,♩,♭"></label>
+    <button id="saveGifBtn">GIF 저장</button>
+</div>
 
-    <label>캔버스 크기</label>
-    <div class="row">
-      <select id="canvasSize">
-        <option value="256">256 × 256</option>
-        <option value="400">400 × 400</option>
-        <option value="512" selected>512 × 512</option>
-        <option value="800">800 × 800</option>
-      </select>
-      <div style="margin-left:auto" class="small">권장: 512, FPS 12~20</div>
-    </div>
+<canvas id="musicCanvas"></canvas>
 
-    <label>프레임/초 (FPS)</label>
-    <input id="fps" type="range" min="8" max="30" value="18">
-
-    <label>길이(초)</label>
-    <input id="duration" type="range" min="1" max="8" value="4">
-
-    <label>음표 개수 (밀도)</label>
-    <input id="density" type="range" min="3" max="80" value="18">
-
-    <label>크기 범위</label>
-    <div class="row">
-      <input id="minSize" type="number" value="18" style="width:80px">
-      <input id="maxSize" type="number" value="48" style="width:80px">
-      <div class="small" style="margin-left:auto">px</div>
-    </div>
-
-    <label>음표 구성</label>
-    <select id="shapeSelect">
-      <option value="simple">단일 음표 (Single)</option>
-      <option value="beamed">비어드(빔) 음표(쌍)</option>
-      <option value="cluster">클러스터(무리)</option>
-    </select>
-
-    <label>움직임 패턴</label>
-    <select id="motionSelect">
-      <option value="float">부드럽게 떠오름 (Float)</option>
-      <option value="swirl">소용돌이 (Swirl)</option>
-      <option value="bounce">튕김 (Bounce)</option>
-      <option value="wave">웨이브 (Wave)</option>
-      <option value="drift">드리프트 (Drift)</option>
-    </select>
-
-    <label>색상 설정</label>
-    <div class="palette" id="presetPalette">
-      <!-- JS 에서 채움 -->
-    </div>
-    <div class="row" style="margin-top:8px">
-      <input id="colorPicker" type="color" value="#ffcc66">
-      <button id="addColor" style="margin-left:4px">팔레트 추가</button>
-      <button id="randomizeColors" style="margin-left:auto">랜덤 팔레트</button>
-    </div>
-
-    <label>프리셋</label>
-    <div class="controls">
-      <button id="presetGentle">Gentle Float</button>
-      <button id="presetBurst">Energetic Burst</button>
-      <button id="presetSwirl">Night Swirl</button>
-    </div>
-
-    <div class="controls">
-      <button id="regen">재생성</button>
-      <button id="playPause">일시정지</button>
-      <button id="exportGif">GIF로 저장</button>
-    </div>
-
-    <div class="footer">
-      <div>GIF 투명 처리: 단색(마젠타)을 투명색으로 설정합니다. (GIF는 반투명 알파를 완전히 지원하지 않습니다.)</div>
-    </div>
-
-    <div id="downloadArea"></div>
-  </div>
-
-  <div class="panel preview" style="width:700px">
-    <h1>미리보기</h1>
-    <canvas id="stage" width="512" height="512"></canvas>
-    <div class="small" style="margin-top:10px">실시간 미리보기 (루프)</div>
-  </div>
-
+<script src="/js/lib/gif.js"></script>
 <script>
-/*
-  Note Maker — 단일 파일 구현
-  - 미리보기 애니메이션은 requestAnimationFrame 으로 동작
-  - GIF 저장 시: 시뮬레이션용 복사 상태로 프레임 전부 생성 -> gif.js 로 렌더
-  - GIF 투명색: MAGENTA (0xFF00FF) 를 투명색으로 지정 (단색 투명)
-*/
-
-/* ====== 유틸 ====== */
-const rand = (a,b)=> a + Math.random()*(b-a);
-const pick = arr => arr[Math.floor(Math.random()*arr.length)];
-const clamp = (v,a,b)=> Math.max(a,Math.min(b,v));
-
-/* ====== DOM ====== */
-const canvas = document.getElementById('stage');
+const canvas = document.getElementById('musicCanvas');
 const ctx = canvas.getContext('2d');
-const canvasSizeSel = document.getElementById('canvasSize');
-const fpsInput = document.getElementById('fps');
-const durationInput = document.getElementById('duration');
-const densityInput = document.getElementById('density');
-const minSizeInput = document.getElementById('minSize');
-const maxSizeInput = document.getElementById('maxSize');
-const shapeSelect = document.getElementById('shapeSelect');
-const motionSelect = document.getElementById('motionSelect');
-const presetPaletteEl = document.getElementById('presetPalette');
-const colorPicker = document.getElementById('colorPicker');
-const addColorBtn = document.getElementById('addColor');
-const randomizeColorsBtn = document.getElementById('randomizeColors');
-const regenBtn = document.getElementById('regen');
-const playPauseBtn = document.getElementById('playPause');
-const exportGifBtn = document.getElementById('exportGif');
-const downloadArea = document.getElementById('downloadArea');
 
-let W = canvas.width, H = canvas.height;
-
-/* ====== 상태 및 설정 ====== */
-let settings = {
-  fps: parseInt(fpsInput.value),
-  duration: parseInt(durationInput.value),
-  density: parseInt(densityInput.value),
-  minSize: parseInt(minSizeInput.value),
-  maxSize: parseInt(maxSizeInput.value),
-  shape: shapeSelect.value,
-  motion: motionSelect.value,
-  palette: ['#ffd866','#6ee7b7','#7dd3fc','#fda4af','#d6b1ff']
+let config = {
+    color:'#ff00ff',
+    canvasWidth:800,
+    canvasHeight:200,
+    minNotes:3,
+    maxNotes:7,
+    randomNotes:true,
+    customNotes:['♫','♪','♬','♩','♭']
 };
 
-let notes = [];
-let running = true;
-let lastTime = 0;
+let notesString = '';
+let x = -50;
+let fontSize = config.canvasHeight*0.6;
 
-/* ====== 팔레트 UI ====== */
-function renderPaletteUI(){
-  presetPaletteEl.innerHTML = '';
-  settings.palette.forEach((c, i) => {
-    const d = document.createElement('div');
-    d.className='swatch';
-    d.style.background = c;
-    d.title = c;
-    d.onclick = ()=> {
-      // 클릭하면 그 색을 메인 컬러로 설정 (팝업 등 없이)
-      colorPicker.value = c;
-    };
-    d.oncontextmenu = (e)=>{
-      e.preventDefault();
-      // 우클릭으로 제거 (항상 최소 1개 컬러 유지)
-      if(settings.palette.length>1){
-        settings.palette.splice(i,1);
-        renderPaletteUI();
-        regen();
-      }
-    };
-    presetPaletteEl.appendChild(d);
-  });
-}
-renderPaletteUI();
-
-addColorBtn.onclick = ()=>{
-  const c = colorPicker.value;
-  settings.palette.push(c);
-  renderPaletteUI();
-  regen();
-};
-randomizeColorsBtn.onclick = ()=>{
-  const random = ()=> '#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
-  settings.palette = [random(),random(),random(),random()];
-  renderPaletteUI();
-  regen();
-};
-
-/* ====== 음표 데이터 구조 & 드로우 ====== */
-function createNote(seedIndex){
-  const s = {
-    id: Math.random().toString(36).slice(2,9),
-    x: rand(0.1*W,0.9*W),
-    y: rand(0.2*H,0.9*H),
-    size: rand(settings.minSize, settings.maxSize),
-    rot: rand(-0.2,0.2),
-    color: pick(settings.palette),
-    shape: settings.shape,
-    motion: settings.motion,
-    vx: rand(-8,8)/10,
-    vy: rand(-40,-5)/10,
-    life: rand(6,20),
-    seed: seedIndex || Math.floor(Math.random()*10000),
-    t: 0,
-  };
-  return s;
+function updateConfigFromGUI() {
+    config.color = document.getElementById('noteColor').value;
+    config.minNotes = parseInt(document.getElementById('minNotes').value);
+    config.maxNotes = parseInt(document.getElementById('maxNotes').value);
+    config.canvasWidth = parseInt(document.getElementById('canvasWidth').value);
+    config.canvasHeight = parseInt(document.getElementById('canvasHeight').value);
+    config.randomNotes = document.getElementById('randomNotes').checked;
+    config.customNotes = document.getElementById('customNotes').value.split(',').map(s=>s.trim()).filter(s=>s);
+    canvas.width = config.canvasWidth;
+    canvas.height = config.canvasHeight;
+    fontSize = config.canvasHeight*0.6;
 }
 
-function drawNote(ctx, n){
-  ctx.save();
-  ctx.translate(n.x, n.y);
-  ctx.rotate(n.rot);
-  const s = n.size;
-  // note head (타원)
-  ctx.beginPath();
-  ctx.ellipse(0,0, s*0.6, s*0.45, 0, 0, Math.PI*2);
-  ctx.fillStyle = n.color;
-  ctx.fill();
-  // stem
-  const stemH = s*2.2;
-  ctx.beginPath();
-  ctx.rect(s*0.45, -stemH, s*0.12, stemH);
-  ctx.fillStyle = n.color;
-  ctx.fill();
-
-  // flag (간단한 베지어)
-  ctx.beginPath();
-  ctx.moveTo(s*0.45, -stemH + s*0.1);
-  ctx.bezierCurveTo(s*1.4, -stemH + s*0.6, s*1.0, -stemH + s*1.2, s*0.2, -stemH + s*1.0);
-  ctx.fillStyle = n.color;
-  ctx.globalAlpha = 0.95;
-  ctx.fill();
-
-  ctx.restore();
-}
-
-/* 여러 음표 조합 (비드, 클러스터) */
-function drawNoteComposite(ctx, n){
-  if(n.shape === 'simple') {
-    drawNote(ctx,n);
-    return;
-  }
-  if(n.shape === 'beamed') {
-    // 두 음표를 약간 오프셋 하여 그리기
-    const n1 = Object.assign({},n,{x:n.x- n.size*0.45, size: n.size*0.9});
-    const n2 = Object.assign({},n,{x:n.x+ n.size*0.45, size: n.size*0.9, rot: -n.rot*0.8});
-    drawNote(ctx,n1);
-    drawNote(ctx,n2);
-    // 빔 연결 (간단 라인)
-    ctx.save();
-    ctx.strokeStyle = n.color;
-    ctx.lineWidth = Math.max(2, n.size*0.09);
-    ctx.beginPath();
-    ctx.moveTo(n1.x + n1.size*0.45, n1.y - n1.size*2.1);
-    ctx.lineTo(n2.x - n2.size*0.45, n2.y - n2.size*2.1);
-    ctx.stroke();
-    ctx.restore();
-    return;
-  }
-  if(n.shape === 'cluster') {
-    // 3~5개 작은 음표를 클러스터로
-    const count = 3 + Math.floor(n.size/20);
+function generateNotes() {
+    const count = Math.floor(Math.random()*(config.maxNotes - config.minNotes +1)) + config.minNotes;
+    let notes = [];
     for(let i=0;i<count;i++){
-      const off = (i - (count-1)/2) * (n.size*0.45);
-      const small = Object.assign({}, n, {
-        x: n.x + off + Math.sin(n.t + i)*n.size*0.03,
-        y: n.y + Math.cos(n.t + i)*n.size*0.02,
-        size: n.size*0.7 - i*1.5,
-        rot: n.rot + Math.sin(n.t+i)*0.2
-      });
-      drawNote(ctx, small);
+        if(config.randomNotes){
+            const randIndex = Math.floor(Math.random()*config.customNotes.length);
+            notes.push(config.customNotes[randIndex]);
+        } else {
+            notes.push(config.customNotes[i%config.customNotes.length]);
+        }
     }
-  }
+    return notes.join('');
 }
 
-/* ====== 움직임(업데이트) ====== */
-function updateNote(n, dt){
-  n.t += dt;
-  const s = n;
-  switch(s.motion){
-    case 'float':
-      s.y += s.vy * dt*0.6;
-      s.x += Math.sin((s.t+s.seed)*1.3)*0.5*dt*40;
-      s.rot += Math.sin(s.t*0.5 + s.seed)*0.0006;
-      if(s.y < -50) s.y = H + 60;
-      break;
-    case 'swirl':
-      // 중앙을 기준으로 소용돌이
-      const cx = W*0.5, cy = H*0.5;
-      const ang = Math.atan2(s.y-cy, s.x-cx) + dt*0.6*(0.6 + s.size/60);
-      const r = Math.hypot(s.x-cx, s.y-cy) + dt * -6;
-      s.x = cx + Math.cos(ang) * r;
-      s.y = cy + Math.sin(ang) * r;
-      s.rot += 0.02 * dt;
-      if(r < 20){ s.x = rand(0.1*W,0.9*W); s.y = rand(0.6*H,0.95*H); }
-      break;
-    case 'bounce':
-      s.x += s.vx * dt * 40;
-      s.y += s.vy * dt * 20;
-      s.vy += 0.7 * dt * 10; // gravity-like
-      if(s.x < -50){ s.x = -50; s.vx *= -0.8; }
-      if(s.x > W+50){ s.x = W+50; s.vx *= -0.8; }
-      if(s.y > H - s.size*0.5){ s.y = H - s.size*0.5; s.vy *= -0.6; }
-      break;
-    case 'wave':
-      s.x += (s.vx*0.6 + Math.cos(s.t*1.6 + s.seed)*0.8) * dt*40;
-      s.y += Math.sin(s.t*2 + s.seed) * dt*10;
-      s.rot += Math.cos(s.t*0.8 + s.seed)*0.002;
-      if(s.x < -60) s.x = W + 60;
-      if(s.x > W + 60) s.x = -60;
-      break;
-    case 'drift':
-      s.x += Math.sin((s.t + s.seed)*0.7) * dt * 18;
-      s.y += Math.cos((s.t*0.5 + s.seed)*0.9) * dt * 10;
-      s.rot += (Math.sin(s.t*0.3 + s.seed))*0.001;
-      break;
-    default:
-      s.y += s.vy * dt;
-      break;
-  }
+function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.font = `${fontSize}px Arial`;
+    ctx.fillStyle = config.color;
+    
+    for(let i=0;i<notesString.length;i++){
+        let char = notesString[i];
+        let charX = x + i*fontSize*0.8;
+        let charY = canvas.height/2 + Math.sin((x+i*20)/20)*20;
+        ctx.fillText(char,charX,charY);
+    }
+
+    x += 2;
+    if(x > canvas.width + 50){
+        x = -50;
+        notesString = generateNotes();
+    }
+
+    requestAnimationFrame(draw);
 }
 
-/* ====== 생성 / 재생성 ====== */
-function regen(){
-  // 업데이트 설정
-  settings.fps = parseInt(fpsInput.value);
-  settings.duration = parseInt(durationInput.value);
-  settings.density = parseInt(densityInput.value);
-  settings.minSize = parseInt(minSizeInput.value);
-  settings.maxSize = parseInt(maxSizeInput.value);
-  settings.shape = shapeSelect.value;
-  settings.motion = motionSelect.value;
+// 초기 설정
+updateConfigFromGUI();
+notesString = generateNotes();
+draw();
 
-  notes = [];
-  for(let i=0;i<settings.density;i++){
-    let n = createNote(i);
-    // shape/motion 동기화
-    n.shape = settings.shape;
-    n.motion = settings.motion;
-    // color 재선택
-    n.color = pick(settings.palette);
-    notes.push(n);
-  }
-}
-regen();
+// GUI 이벤트
+document.getElementById('noteColor').addEventListener('input', ()=>{ config.color=document.getElementById('noteColor').value });
+['minNotes','maxNotes','canvasWidth','canvasHeight','randomNotes','customNotes'].forEach(id=>{
+    document.getElementById(id).addEventListener('change', ()=>{
+        updateConfigFromGUI();
+        notesString = generateNotes();
+    });
+});
 
-/* ====== 애니메이션 루프 ====== */
-function drawAll(){
-  // 캔버스 클리어 (투명 유지)
-  ctx.clearRect(0,0,W,H);
-  // 배경은 투명; 미리보기용 아주 약한 그라데이션 오버레이를 쓰려면 주석 해제
-  // ctx.fillStyle = 'rgba(255,255,255,0.02)'; ctx.fillRect(0,0,W,H);
-  // 뒤에서부터 그리기
-  notes.forEach(n=>{
-    drawNoteComposite(ctx,n);
-  });
-}
-
-function stepAll(dt){
-  for(const n of notes) updateNote(n, dt);
-}
-
-function animate(ts){
-  if(!lastTime) lastTime = ts;
-  const dt = Math.min(0.06, (ts - lastTime)/1000); // sec
-  lastTime = ts;
-  if(running){
-    stepAll(dt);
-    drawAll();
-  }
-  requestAnimationFrame(animate);
-}
-requestAnimationFrame(animate);
-
-/* ====== 인터랙션 바인딩 ====== */
-canvasSizeSel.onchange = ()=>{
-  const s = parseInt(canvasSizeSel.value);
-  W = canvas.width = s; H = canvas.height = s;
-  regen();
-};
-fpsInput.oninput = ()=>{ settings.fps = parseInt(fpsInput.value); };
-durationInput.oninput = ()=>{ settings.duration = parseInt(durationInput.value); };
-densityInput.oninput = ()=>{ settings.density = parseInt(densityInput.value); regen(); };
-minSizeInput.onchange = ()=>{ regen(); };
-maxSizeInput.onchange = ()=>{ regen(); };
-shapeSelect.onchange = ()=>{ settings.shape = shapeSelect.value; notes.forEach(n=>n.shape = settings.shape); };
-motionSelect.onchange = ()=>{ settings.motion = motionSelect.value; notes.forEach(n=>n.motion = settings.motion); };
-
-regenBtn.onclick = ()=>{ regen(); };
-playPauseBtn.onclick = ()=>{
-  running = !running;
-  playPauseBtn.textContent = running ? '일시정지' : '재생';
-};
-
-document.getElementById('presetGentle').onclick = ()=>{
-  fpsInput.value = 16; durationInput.value = 4; densityInput.value = 18;
-  shapeSelect.value = 'simple'; motionSelect.value = 'float';
-  settings.palette = ['#ffd866','#bde0fe','#d6b1ff','#a7f3d0'];
-  renderPaletteUI();
-  regen();
-};
-document.getElementById('presetBurst').onclick = ()=>{
-  fpsInput.value = 20; durationInput.value = 3; densityInput.value = 36;
-  shapeSelect.value = 'beamed'; motionSelect.value = 'bounce';
-  settings.palette = ['#ff6b6b','#ffd93d','#6fffb0','#80d0ff'];
-  renderPaletteUI();
-  regen();
-};
-document.getElementById('presetSwirl').onclick = ()=>{
-  fpsInput.value = 18; durationInput.value = 5; densityInput.value = 26;
-  shapeSelect.value = 'cluster'; motionSelect.value = 'swirl';
-  settings.palette = ['#7c3aed','#60a5fa','#fb7185','#fbbf24'];
-  renderPaletteUI();
-  regen();
-};
-
-/* ====== GIF Export (MAGENTA 투명 기법) ====== */
-exportGifBtn.onclick = async ()=> {
-  exportGifBtn.disabled = true;
-  exportGifBtn.textContent = 'GIF 생성 중...';
-
-  // 파라미터
-  const fps = parseInt(settings.fps || fpsInput.value) || 18;
-  const duration = parseInt(settings.duration || durationInput.value) || 4;
-  const frames = Math.max(1, Math.floor(duration * fps));
-  const delay = Math.round(1000 / fps);
-  const magenta = '#ff00ff'; // 투명색(단색)
-  const magentaInt = 0xff00ff;
-
-  // 시뮬레이션 복제 (원본 notes 보존)
-  const simNotes = notes.map(n => JSON.parse(JSON.stringify(n)));
-  // 시뮬레이션 캔버스 (원본과 동일 크기)
-  const simCanvas = document.createElement('canvas');
-  simCanvas.width = W; simCanvas.height = H;
-  const simCtx = simCanvas.getContext('2d');
-
-  // 오프스크린(마젠타 배경 + 원본 그리기) — GIF 인덱싱에서 이 색을 투명으로 설정
-  const offCanvas = document.createElement('canvas');
-  offCanvas.width = W; offCanvas.height = H;
-  const offCtx = offCanvas.getContext('2d');
-
-  // GIF 인스턴스 설정 (workerScript 경로 명시)
-  const gif = new GIF({
-    workers: 2,
-    quality: 10,
-    width: W,
-    height: H,
-    workerScript: '/js/lib/gif.worker.js',
-    // gif.js 의 transparent 옵션은 정수 RGB (0xRRGGBB) 를 기대하는 구현이 많음
-    transparent: magentaInt
-  });
-
-  // 각 프레임을 시뮬레이션하고 추가
-  for(let f=0; f<frames; f++){
-    // 심시뮬레이트: dt = 1/fps 초
-    const dt = 1 / fps;
-    for(const n of simNotes) updateNote(n, dt);
-
-    // 렌더: simCtx에 그려서 offCtx에 magenta로 합성
-    simCtx.clearRect(0,0,W,H);
-    for(const n of simNotes) drawNoteComposite(simCtx, n);
-
-    // offCtx: magenta 배경(투명으로 만들 색)
-    offCtx.save();
-    offCtx.fillStyle = magenta;
-    offCtx.fillRect(0,0,W,H);
-    offCtx.drawImage(simCanvas, 0, 0);
-    offCtx.restore();
-
-    // addFrame: copy=true 로 내부 버퍼에 복사
-    gif.addFrame(offCanvas, {delay: delay, copy: true});
-  }
-
-  // 렌더링 완료 시 파일 생성
-  gif.on('finished', function(blob) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `notes-${new Date().toISOString().replace(/[:.]/g,'-')}.gif`;
-    a.textContent = 'GIF 다운로드';
-    a.className = 'download-link';
-    downloadArea.innerHTML = '';
-    downloadArea.appendChild(a);
-
-    // 미리보기(새 창) — 선택적
-    const b = document.createElement('button');
-    b.textContent = '미리보기 열기';
-    b.onclick = ()=> window.open(url, '_blank');
-    b.style.marginLeft = '8px';
-    downloadArea.appendChild(b);
-
-    exportGifBtn.disabled = false;
-    exportGifBtn.textContent = 'GIF로 저장';
-  });
-
-  // 시작
-  gif.render();
-};
-
-/* ====== 초기 캔버스 사이즈 동기화 ====== */
-canvasSizeSel.dispatchEvent(new Event('change'));
+// GIF 저장
+document.getElementById('saveGifBtn').addEventListener('click', ()=>{
+    const gif = new GIF({workers:2, quality:10, width:config.canvasWidth, height:config.canvasHeight});
+    let tempX = x;
+    for(let i=0;i<50;i++){ // 50프레임 예제
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        for(let j=0;j<notesString.length;j++){
+            let charX = tempX + j*fontSize*0.8;
+            let charY = canvas.height/2 + Math.sin((tempX+j*20)/20)*20;
+            ctx.fillText(notesString[j], charX, charY);
+        }
+        gif.addFrame(ctx,{copy:true,delay:50});
+        tempX += 2;
+    }
+    gif.on('finished', function(blob){
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'music_notes.gif';
+        a.click();
+    });
+    gif.render();
+});
 </script>
+
 </body>
 </html>
