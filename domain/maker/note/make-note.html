@@ -20,6 +20,7 @@ button { padding:8px 15px; font-size:14px; cursor:pointer; }
     <label>최대 음표 수: <input type="number" id="maxNotes" value="7" min="1" max="10"></label>
     <label>캔버스 가로: <input type="number" id="canvasWidth" value="800" min="100"></label>
     <label>캔버스 세로: <input type="number" id="canvasHeight" value="200" min="50"></label>
+    <label>속도: <input type="number" id="speed" value="2" min="1" max="20"></label>
     <label>랜덤 음표: <input type="checkbox" id="randomNotes" checked></label>
     <label>음표 선택 (쉼표로 구분): <input type="text" id="customNotes" value="♫,♪,♬,♩,♭"></label>
     <button id="saveGifBtn">GIF 저장</button>
@@ -27,11 +28,10 @@ button { padding:8px 15px; font-size:14px; cursor:pointer; }
 
 <canvas id="musicCanvas"></canvas>
 
-<!-- <script src="/js/lib/gif.js"></script> -->
- <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
 <script>
 const canvas = document.getElementById('musicCanvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
 let config = {
     color:'#ff00ff',
@@ -39,6 +39,7 @@ let config = {
     canvasHeight:200,
     minNotes:3,
     maxNotes:7,
+    speed:2,
     randomNotes:true,
     customNotes:['♫','♪','♬','♩','♭']
 };
@@ -47,19 +48,23 @@ let notesString = '';
 let x = -50;
 let fontSize = config.canvasHeight*0.6;
 
+// GUI에서 설정값 읽기
 function updateConfigFromGUI() {
     config.color = document.getElementById('noteColor').value;
     config.minNotes = parseInt(document.getElementById('minNotes').value);
     config.maxNotes = parseInt(document.getElementById('maxNotes').value);
     config.canvasWidth = parseInt(document.getElementById('canvasWidth').value);
     config.canvasHeight = parseInt(document.getElementById('canvasHeight').value);
+    config.speed = parseFloat(document.getElementById('speed').value);
     config.randomNotes = document.getElementById('randomNotes').checked;
     config.customNotes = document.getElementById('customNotes').value.split(',').map(s=>s.trim()).filter(s=>s);
+
     canvas.width = config.canvasWidth;
     canvas.height = config.canvasHeight;
     fontSize = config.canvasHeight*0.6;
 }
 
+// 음표 문자열 생성
 function generateNotes() {
     const count = Math.floor(Math.random()*(config.maxNotes - config.minNotes +1)) + config.minNotes;
     let notes = [];
@@ -74,6 +79,7 @@ function generateNotes() {
     return notes.join('');
 }
 
+// 애니메이션
 function draw() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.font = `${fontSize}px Arial`;
@@ -86,7 +92,7 @@ function draw() {
         ctx.fillText(char,charX,charY);
     }
 
-    x += 2;
+    x += config.speed;
     if(x > canvas.width + 50){
         x = -50;
         notesString = generateNotes();
@@ -102,7 +108,7 @@ draw();
 
 // GUI 이벤트
 document.getElementById('noteColor').addEventListener('input', ()=>{ config.color=document.getElementById('noteColor').value });
-['minNotes','maxNotes','canvasWidth','canvasHeight','randomNotes','customNotes'].forEach(id=>{
+['minNotes','maxNotes','canvasWidth','canvasHeight','speed','randomNotes','customNotes'].forEach(id=>{
     document.getElementById(id).addEventListener('change', ()=>{
         updateConfigFromGUI();
         notesString = generateNotes();
@@ -113,7 +119,7 @@ document.getElementById('noteColor').addEventListener('input', ()=>{ config.colo
 document.getElementById('saveGifBtn').addEventListener('click', ()=>{
     const gif = new GIF({workers:2, quality:10, width:config.canvasWidth, height:config.canvasHeight});
     let tempX = x;
-    for(let i=0;i<50;i++){ // 50프레임 예제
+    for(let i=0;i<50;i++){ // 프레임 수
         ctx.clearRect(0,0,canvas.width,canvas.height);
         for(let j=0;j<notesString.length;j++){
             let charX = tempX + j*fontSize*0.8;
@@ -121,7 +127,7 @@ document.getElementById('saveGifBtn').addEventListener('click', ()=>{
             ctx.fillText(notesString[j], charX, charY);
         }
         gif.addFrame(ctx,{copy:true,delay:50});
-        tempX += 2;
+        tempX += config.speed; // 속도 반영
     }
     gif.on('finished', function(blob){
         const url = URL.createObjectURL(blob);
