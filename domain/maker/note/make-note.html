@@ -35,19 +35,19 @@ const canvas = document.getElementById('musicCanvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
 let config = {
-    color:'#ff00ff',
-    canvasWidth:800,
-    canvasHeight:200,
-    minNotes:3,
-    maxNotes:7,
-    speed:0.05,
-    waveHeight:20,
-    randomNotes:true,
-    customNotes:['♫','♪','♬','♩','♭']
+    color: '#ff00ff',
+    canvasWidth: 800,
+    canvasHeight: 200,
+    minNotes: 3,
+    maxNotes: 7,
+    speed: 0.05,
+    waveHeight: 20,
+    randomNotes: true,
+    customNotes: ['♫', '♪', '♬', '♩', '♭']
 };
 
 let notesString = '';
-let fontSize = config.canvasHeight*0.6;
+let fontSize = config.canvasHeight * 0.6;
 let time = 0;
 
 // GUI에서 설정값 읽기
@@ -60,23 +60,23 @@ function updateConfigFromGUI() {
     config.speed = parseFloat(document.getElementById('speed').value);
     config.waveHeight = parseFloat(document.getElementById('waveHeight').value);
     config.randomNotes = document.getElementById('randomNotes').checked;
-    config.customNotes = document.getElementById('customNotes').value.split(',').map(s=>s.trim()).filter(s=>s);
+    config.customNotes = document.getElementById('customNotes').value.split(',').map(s => s.trim()).filter(s => s);
 
     canvas.width = config.canvasWidth;
     canvas.height = config.canvasHeight;
-    fontSize = Math.min(config.canvasHeight*0.6, config.canvasHeight/2 - config.waveHeight); // 음표 크기와 물결 높이 고려
+    fontSize = Math.min(config.canvasHeight * 0.6, config.canvasHeight / 2 - config.waveHeight); // 음표 크기와 물결 높이 고려
 }
 
 // 음표 문자열 생성
 function generateNotes() {
-    const count = Math.floor(Math.random()*(config.maxNotes - config.minNotes +1)) + config.minNotes;
+    const count = Math.floor(Math.random() * (config.maxNotes - config.minNotes + 1)) + config.minNotes;
     let notes = [];
-    for(let i=0;i<count;i++){
-        if(config.randomNotes){
-            const randIndex = Math.floor(Math.random()*config.customNotes.length);
+    for (let i = 0; i < count; i++) {
+        if (config.randomNotes) {
+            const randIndex = Math.floor(Math.random() * config.customNotes.length);
             notes.push(config.customNotes[randIndex]);
         } else {
-            notes.push(config.customNotes[i%config.customNotes.length]);
+            notes.push(config.customNotes[i % config.customNotes.length]);
         }
     }
     return notes.join('');
@@ -84,19 +84,19 @@ function generateNotes() {
 
 // 애니메이션 (제자리 물결)
 function draw() {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.font = `${fontSize}px Arial`;
     ctx.fillStyle = config.color;
 
-    const startX = (canvas.width - notesString.length*fontSize*0.8)/2;
-    const centerY = canvas.height/2;
+    const startX = (canvas.width - notesString.length * fontSize * 0.8) / 2;
+    const centerY = canvas.height / 2;
 
-    for(let i=0;i<notesString.length;i++){
+    for (let i = 0; i < notesString.length; i++) {
         let char = notesString[i];
-        let charX = startX + i*fontSize*0.8;
+        let charX = startX + i * fontSize * 0.8;
         let offsetY = Math.sin(time + i) * config.waveHeight;
-        let charY = Math.min(canvas.height - fontSize/2, Math.max(fontSize/2, centerY + offsetY));
-        ctx.fillText(char,charX,charY);
+        let charY = Math.min(canvas.height - fontSize / 2, Math.max(fontSize / 2, centerY + offsetY));
+        ctx.fillText(char, charX, charY);
     }
 
     time += config.speed;
@@ -109,22 +109,24 @@ notesString = generateNotes();
 draw();
 
 // GUI 이벤트
-document.getElementById('noteColor').addEventListener('input', ()=>{ config.color=document.getElementById('noteColor').value });
-['minNotes','maxNotes','canvasWidth','canvasHeight','speed','waveHeight','randomNotes','customNotes'].forEach(id=>{
-    document.getElementById(id).addEventListener('change', ()=>{
+document.getElementById('noteColor').addEventListener('input', () => { config.color = document.getElementById('noteColor').value });
+['minNotes', 'maxNotes', 'canvasWidth', 'canvasHeight', 'speed', 'waveHeight', 'randomNotes', 'customNotes'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => {
         updateConfigFromGUI();
         notesString = generateNotes();
     });
 });
 
-// GIF 저장 (비동기, 안정화)
+// GIF 저장 (고 프레임, 고퀄리티, 투명 배경)
 document.getElementById('saveGifBtn').addEventListener('click', () => {
     const gif = new GIF({
         workers: 4, // 워커 수 증가
         quality: 1, // 최고 품질
         width: config.canvasWidth,
         height: config.canvasHeight,
-        workerScript: 'https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js' // 안정적인 CDN 경로
+        workerScript: '/js/lib/gif.worker.js', // 안정적인 CDN 경로
+        transparent: '#00000000', // 투명 배경 설정
+        background: '#00000000' // GIF 배경 투명
     });
 
     const frameCount = 120; // 2초간 60fps (120프레임)
@@ -154,7 +156,7 @@ document.getElementById('saveGifBtn').addEventListener('click', () => {
             ctx.fillText(notesString[j], charX, charY);
         }
 
-        gif.addFrame(canvas, { delay: delay, copy: true });
+        gif.addFrame(canvas, { delay: delay, copy: true, transparent: '#00000000' });
         tempTime += config.speed;
         i++;
         requestAnimationFrame(addNextFrame);
@@ -166,7 +168,7 @@ document.getElementById('saveGifBtn').addEventListener('click', () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'music_notes_high_quality.gif';
+        a.download = 'music_notes_transparent.gif';
         a.click();
         URL.revokeObjectURL(url); // 메모리 누수 방지
     });
